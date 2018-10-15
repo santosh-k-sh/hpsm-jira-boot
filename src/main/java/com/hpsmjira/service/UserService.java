@@ -1,0 +1,43 @@
+package com.hpsmjira.service;
+
+import com.hpsmjira.model.HPSMProblem;
+import com.hpsmjira.model.Project;
+import com.hpsmjira.model.User;
+import org.springframework.stereotype.Service;
+
+import java.util.List;
+import java.util.Map;
+
+/**
+ * Created by Santosh.Sharma on 9/29/2018.
+ */
+@Service
+public class UserService {
+    private User user;
+    private Map<String, HPSMProblem> problemToMigrate;
+    private List<Project> selectedProjects;
+
+    public User getUser() {
+        return user;
+    }
+
+    public void setUser(User user) {
+        this.user = user;
+    }
+
+    public Map<String, HPSMProblem> getProblemToMigrate() {
+        return problemToMigrate;
+    }
+
+    public void setProblemToMigrate(Map<String, HPSMProblem> problemToMigrate) {
+        this.problemToMigrate = problemToMigrate;
+    }
+
+    public List<Project> getSelectedProjects() {
+        return selectedProjects;
+    }
+
+    public void setSelectedProjects(List<Project> selectedProjects) {
+        this.selectedProjects = selectedProjects;
+    }
+}
