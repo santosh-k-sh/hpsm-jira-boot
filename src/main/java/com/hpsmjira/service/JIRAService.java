@@ -80,7 +80,7 @@ public class JIRAService {
         IssueType problemIssueType = null;
         List<String> newlyCreatedJIRAIds = new ArrayList<String>();
 
-        for(Map.Entry<String, HPSMProblem> hpsmProblemDetail : userService.getProblemToMigrate().entrySet()) {
+        for(Map.Entry<String, List<HPSMProblem>> hpsmProblemDetail : userService.getProblemToMigrate().entrySet()) {
             try {
                 Project jiraProjectByProjectKeyId = restClient.getProjectClient().getProject(hpsmProblemDetail.getKey()).get();
                 Iterator issueTypeIterator = jiraProjectByProjectKeyId.getIssueTypes().iterator();
@@ -99,28 +99,30 @@ public class JIRAService {
             }
 
             if(problemIssueType != null) {
-                HPSMProblem hpsmProblemDet = hpsmProblemDetail.getValue();
-                /* Custom fields settings
-                * - customfield_10106: HPSM ID */
-                FieldInput fieldInput = new FieldInput("customfield_10106", hpsmProblemDet.getProblemNo());
+                List<HPSMProblem> problemList = hpsmProblemDetail.getValue();
+                for(HPSMProblem hpsmProblem : problemList) {
+                    /* Custom fields settings
+                    * - customfield_10106: HPSM ID */
+                    FieldInput fieldInput = new FieldInput("customfield_10106", hpsmProblem.getProblemNo());
 
 
-                /*IssueInput newIssue = new IssueInputBuilder(hpsmProblemDetail.getKey(),
-                        problemIssueType.getId(), hpsmProblemDet.getProblemTitle())
-                        .setDescription(hpsmProblemDet.getProblemDescription())
-                        .setPriorityId(Long.valueOf(hpsmProblemDet.getProblemPriority()))
-                        .setIssueType(problemIssueType)
-                        //.setIssueTypeId(hpsmProblemDet.getProjectKey().equals("problem")? 10900L:1090L) // TODO: CR to be handled here
-                        //.setReporterName("Rana Khurram Shahzad")
-                        .setFieldInput(fieldInput)
+                    /*IssueInput newIssue = new IssueInputBuilder(hpsmProblemDetail.getKey(),
+                            problemIssueType.getId(), hpsmProblemDet.getProblemTitle())
+                            .setDescription(hpsmProblemDet.getProblemDescription())
+                            .setPriorityId(Long.valueOf(hpsmProblemDet.getProblemPriority()))
+                            .setIssueType(problemIssueType)
+                            //.setIssueTypeId(hpsmProblemDet.getProjectKey().equals("problem")? 10900L:1090L) // TODO: CR to be handled here
+                            //.setReporterName("Rana Khurram Shahzad")
+                            .setFieldInput(fieldInput)
 
-                        .build();*/
+                            .build();*/
 
-                System.out.println("...");
-                String jiraID = "111";//issueClient.createIssue(newIssue).claim().getKey();
-                System.out.println("JIRA created succefully." + jiraID);
+                    System.out.println("...");
+                    String jiraID = "111";//issueClient.createIssue(newIssue).claim().getKey();
+                    System.out.println("JIRA created succefully." + jiraID);
 
-                newlyCreatedJIRAIds.add(jiraID);
+                    newlyCreatedJIRAIds.add(jiraID);
+                }
             }
         }
 

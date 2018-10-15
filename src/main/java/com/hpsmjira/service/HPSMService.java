@@ -63,9 +63,9 @@ public class HPSMService {
         return retrieveProblemKeysListResponse;
     }
 
-    public Map<String, HPSMProblem> loadProblemDetail(String projectKey, RetrieveProblemKeysListResponse retrieveProblemKeysListResponse) {
+    public Map<String, List<HPSMProblem>> loadProblemDetail(String projectKey, RetrieveProblemKeysListResponse retrieveProblemKeysListResponse) {
         /* Reading Problem List */
-        Map<String, HPSMProblem> hpsmProblemMap = new HashMap<String, HPSMProblem>();
+        Map<String, List<HPSMProblem>> hpsmProblemMap = new HashMap<String, List<HPSMProblem>>();
         if(retrieveProblemKeysListResponse != null && retrieveProblemKeysListResponse.getMessage().equalsIgnoreCase("Success")) {
             List<String> problemLists = null;
 
@@ -81,10 +81,12 @@ public class HPSMService {
 
             if(problemLists != null && problemLists.size() > 0) {
                 /* Loads Problem Details */
+                List<HPSMProblem> hpsmProblemsNotAvailableInJIRA = new ArrayList<HPSMProblem>();
                 for(String problemNo : problemLists) {
                     /*Checks if the HPSM Problem already exists in JIRA */
                     if(jiraService.searchJiraTicket(problemNo).size() == 0) {
-                        hpsmProblemMap.put(projectKey, loadProblemDetails(problemManagement, problemNo));
+                        hpsmProblemsNotAvailableInJIRA.add(loadProblemDetails(problemManagement, problemNo));
+                        hpsmProblemMap.put(projectKey, hpsmProblemsNotAvailableInJIRA);
                     }
                 }
             }

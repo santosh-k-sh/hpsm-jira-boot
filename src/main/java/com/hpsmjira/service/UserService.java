@@ -14,7 +14,7 @@ import java.util.Map;
 @Service
 public class UserService {
     private User user;
-    private Map<String, HPSMProblem> problemToMigrate;
+    private Map<String, List<HPSMProblem>> problemToMigrate;
     private List<Project> selectedProjects;
 
     public User getUser() {
@@ -25,11 +25,11 @@ public class UserService {
         this.user = user;
     }
 
-    public Map<String, HPSMProblem> getProblemToMigrate() {
+    public Map<String, List<HPSMProblem>> getProblemToMigrate() {
         return problemToMigrate;
     }
 
-    public void setProblemToMigrate(Map<String, HPSMProblem> problemToMigrate) {
+    public void setProblemToMigrate(Map<String, List<HPSMProblem>> problemToMigrate) {
         this.problemToMigrate = problemToMigrate;
     }
 

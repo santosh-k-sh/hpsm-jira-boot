@@ -280,8 +280,8 @@ public class ConfigurationController {
             jiraService.createJIRATicket();
         }
 
-        initiateJob();
-        changeDelay(Long.parseLong(selectedJobHour));
+        //initiateJob();
+        //changeDelay(Long.parseLong(selectedJobHour));
 
         return hpsmProblems;
     }
@@ -300,8 +300,8 @@ public class ConfigurationController {
     }
 
     private void populateHPSMProblem(String projectKey, RetrieveProblemKeysListResponse retrieveProblemKeysListResponse) {
-        Map<String, HPSMProblem> hpsmProblemMap = new HashMap<String, HPSMProblem>();
-        hpsmProblemMap.put(null, new HPSMProblem());
+        Map<String, List<HPSMProblem>> hpsmProblemMap = new HashMap<String, List<HPSMProblem>>();
+        hpsmProblemMap.put(null, new ArrayList<HPSMProblem>());
 
         List<JIRAIssue> jiraIssues = new ArrayList<JIRAIssue>();
         jiraIssues.add(new JIRAIssue());

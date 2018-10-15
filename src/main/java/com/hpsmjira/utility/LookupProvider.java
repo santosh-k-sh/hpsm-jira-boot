@@ -75,6 +75,7 @@ public class LookupProvider {
         HPSMProject hpsmProject17 = new HPSMProject("TNOQ", "Noqodi.Reports");
         HPSMProject hpsmProject18 = new HPSMProject("TEAP", "Unified Channel");
         HPSMProject hpsmProject19 = new HPSMProject("TVIS", "Vision.BCLite");
+        HPSMProject hpsmProject20 = new HPSMProject("TVIS", "Vision.NGE");
 
         hpsmProjects.add(hpsmProject1);
         hpsmProjects.add(hpsmProject2);
@@ -95,6 +96,7 @@ public class LookupProvider {
         hpsmProjects.add(hpsmProject17);
         hpsmProjects.add(hpsmProject18);
         hpsmProjects.add(hpsmProject19);
+        hpsmProjects.add(hpsmProject20);
 
         return hpsmProjects;
     }
