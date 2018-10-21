@@ -29,8 +29,8 @@ public class ProblemManagement_Service extends Service
         URL url = null;
         WebServiceException e = null;
         try {
-            url = new URL("http://localhost:8084/ProblemManagement?wsdl");
-            //url = new URL("http://10.4.50.192:13083/SM/7/ProblemManagement?wsdl");
+            //url = new URL("http://localhost:8084/ProblemManagement?wsdl");
+            url = new URL("http://10.4.50.192:13083/SM/7/ProblemManagement?wsdl");
         } catch (MalformedURLException ex) {
             e = new WebServiceException(ex);
         }

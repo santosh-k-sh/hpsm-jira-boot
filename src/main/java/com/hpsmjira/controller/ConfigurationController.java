@@ -1,6 +1,7 @@
 package com.hpsmjira.controller;
 
 import com.atlassian.jira.rest.client.api.JiraRestClient;
+import com.hp.schemas.sm._7.RetrieveNEW9330035ProblemKeysListResponse;
 import com.hp.schemas.sm._7.RetrieveProblemKeysListResponse;
 import com.hpsmjira.model.*;
 import com.hpsmjira.model.Project;
@@ -54,7 +55,6 @@ public class ConfigurationController {
     static Runnable runnable;
     static ScheduledFuture<?> future;
 
-
     @GetMapping("/allProjects")
     @CrossOrigin(origins = "http://localhost:3000")
     public List<com.hpsmjira.model.Project> allProjects() {
@@ -92,7 +92,7 @@ public class ConfigurationController {
     * */
 
     @RequestMapping(value = "/validatehpsm", method = RequestMethod.POST)
-    public boolean validatehpsm(@RequestBody HPSMCredential hpsmCredential) throws JSONException {
+    public boolean validateHPSMCredential(@RequestBody HPSMCredential hpsmCredential) throws JSONException {
         JSONObject responseJson = new JSONObject();
         HttpHeaders responseHeaders = new HttpHeaders();
         responseHeaders.add("Content-Type", "application/json; charset=utf-8");
@@ -112,7 +112,7 @@ public class ConfigurationController {
         try {
             System.out.println("calling hpsm..");
 
-            Map<String, RetrieveProblemKeysListResponse> retrieveProblemKeysListResponse = hpsmService.auth(user.getHpsmUser().getHpsmUserName(),user.getHpsmUser().getHpsmPassword());
+            Map<String, RetrieveNEW9330035ProblemKeysListResponse> retrieveProblemKeysListResponse = hpsmService.auth(user.getHpsmUser().getHpsmURL(), user.getHpsmUser().getHpsmUserName(),user.getHpsmUser().getHpsmPassword());
 
             user.getHpsmUser().setAuthenticated(true);
             responseJson.put("AUTHENTICATED", true);
@@ -144,6 +144,7 @@ public class ConfigurationController {
             userService.getUser().setHpsmUser(user.getHpsmUser());
         }
 
+        System.out.println("User Authenticated : "+user.getHpsmUser().isAuthenticated());
         return user.getHpsmUser().isAuthenticated();
     }
 
@@ -177,22 +178,17 @@ public class ConfigurationController {
             }
         }
 
-        /*if(userService.getUser() == null) {
-            userService.setUser(user);
-        } else {
-            userService.getUser().setJiraUser(user.getJiraUser());
-        }*/
-
         if(userService.getUser().getHpsmUser() != null && userService.getUser().getHpsmUser().isAuthenticated() &&
                 userService.getUser().getJiraUser() != null && userService.getUser().getJiraUser().isAuthenticated()) {
             userService.getUser().setUserAuthenticated(true);
             userService.getUser().setUserAuthenticated(true);
         }
 
+        System.out.println("JIRA User Authenticated : "+userService.getUser().getJiraUser().isAuthenticated());
         return userService.getUser().getJiraUser().isAuthenticated();
     }
 
-    @CrossOrigin(origins = "http://localhost:3000")
+    /*@CrossOrigin(origins = "http://localhost:3000")*/
     @RequestMapping(value = "/hpsmProjects")
     public List<HPSMProject>  hpsmProjects() {
         return lookupProvider.loadHPSMProjects();
@@ -216,10 +212,6 @@ public class ConfigurationController {
         if(Objects.equals(selectedHPSMProjectName, "") || Objects.equals(selectedJIRAProjectName, "")) {
             return selectedProjects;
         }
-
-        /*if(userService != null && userService.getUser() != null && userService.getUser().isUserAuthenticated()) {
-            selectedProjects = userService.getSelectedProjects();
-        }*/
 
         for(HPSMProject project : lookupProvider.loadHPSMProjects()) {
             if(project.getProjectName().equals(selectedHPSMProjectName)) {
@@ -273,25 +265,36 @@ public class ConfigurationController {
             }
         }*/
 
-        loadHPSMProblemToProcess();
+        /*loadHPSMProblemToProcess();
 
         if(userService.getProblemToMigrate() != null && userService.getProblemToMigrate().size() > 0) {
             System.out.println("Problems to migrate : " + userService.getProblemToMigrate().entrySet().size());
             jiraService.createJIRATicket();
+        }*/
+
+        initiateJob();
+
+        if(selectedJobHour != null && selectedJobHour.length() > 0) {
+            changeDelay(Long.parseLong(selectedJobHour));
         }
 
-        //initiateJob();
-        //changeDelay(Long.parseLong(selectedJobHour));
+        if(userService.getProblemToMigrate() != null && userService.getProblemToMigrate().entrySet().size() > 0) {
+            for(Map.Entry<String, List<HPSMProblem>> hpsmProblemDetail : userService.getProblemToMigrate().entrySet()) {
+                for(HPSMProblem hpsmProblem : hpsmProblemDetail.getValue()) {
+                    hpsmProblems.add(hpsmProblem);
+                }
+            }
+        }
 
         return hpsmProblems;
     }
 
     private void loadHPSMProblemToProcess() {
         if(hpsmService.getProblemManagement() != null) {
-            Map<String, RetrieveProblemKeysListResponse> retrieveProblemKeysListResponseMap = hpsmService.retrieveProblemKeysList(hpsmService.getProblemManagement());
+            Map<String, RetrieveNEW9330035ProblemKeysListResponse> retrieveProblemKeysListResponseMap = hpsmService.retrieveProblemKeysList(hpsmService.getProblemManagement());
 
             if(retrieveProblemKeysListResponseMap != null) {
-                for (Map.Entry<String, RetrieveProblemKeysListResponse> retrieveProblemKeysListResponse : retrieveProblemKeysListResponseMap.entrySet()) {
+                for (Map.Entry<String, RetrieveNEW9330035ProblemKeysListResponse> retrieveProblemKeysListResponse : retrieveProblemKeysListResponseMap.entrySet()) {
                     String projectKey = retrieveProblemKeysListResponse.getKey().split(":")[0];
                     populateHPSMProblem(projectKey, retrieveProblemKeysListResponse.getValue());
                 }
@@ -299,7 +302,7 @@ public class ConfigurationController {
         }
     }
 
-    private void populateHPSMProblem(String projectKey, RetrieveProblemKeysListResponse retrieveProblemKeysListResponse) {
+    private void populateHPSMProblem(String projectKey, RetrieveNEW9330035ProblemKeysListResponse retrieveProblemKeysListResponse) {
         Map<String, List<HPSMProblem>> hpsmProblemMap = new HashMap<String, List<HPSMProblem>>();
         hpsmProblemMap.put(null, new ArrayList<HPSMProblem>());
 
@@ -311,7 +314,11 @@ public class ConfigurationController {
             hpsmProblemMap.clear();
             hpsmProblemMap = hpsmService.loadProblemDetail(projectKey, retrieveProblemKeysListResponse);
 
-            userService.setProblemToMigrate(hpsmProblemMap);
+            if(userService.getProblemToMigrate() != null && userService.getProblemToMigrate().entrySet().size() > 0) {
+                userService.getProblemToMigrate().putAll(hpsmProblemMap);
+            } else {
+                userService.setProblemToMigrate(hpsmProblemMap);
+            }
         }
     }
 
@@ -320,16 +327,16 @@ public class ConfigurationController {
         runnable = new Runnable() {
             @Override
             public void run() {
-                System.out.println("Inside runnable");
-                loadHPSMProblemToProcess();
+                System.out.println("Job initiated...");
+                if(userService.getUser().isUserAuthenticated()) {
+                    loadHPSMProblemToProcess();
+                }
 
                 if(userService.getProblemToMigrate() != null && userService.getProblemToMigrate().size() > 0) {
+                    System.out.println("============================================================================");
                     System.out.println("Problems to migrate : " + userService.getProblemToMigrate().entrySet().size());
                     jiraService.createJIRATicket();
                 }
-
-
-
             }
         };
         future = executor.scheduleWithFixedDelay(runnable, 0, 10, TimeUnit.MINUTES);
@@ -346,7 +353,7 @@ public class ConfigurationController {
 
         System.out.println("Previous task canceled: " + res);
 
-        future = executor.scheduleWithFixedDelay(runnable, 0, scheduleHourlyDelay, TimeUnit.HOURS);
+        future = executor.scheduleWithFixedDelay(runnable, 0, scheduleHourlyDelay, TimeUnit.MINUTES);
     }
 
     /*
@@ -369,6 +376,7 @@ public class ConfigurationController {
 
 
 
+/*
 
     @RequestMapping(value = "/authenticatehpsm", method = RequestMethod.POST, produces = {"application/json"})
     public ResponseEntity<String> authenticateHPSMUser(@ModelAttribute(value = "loginFormData") User user, ModelMap modelMap) throws JSONException {
@@ -380,7 +388,7 @@ public class ConfigurationController {
         try {
             System.out.println("calling hpsm..");
 
-            Map<String, RetrieveProblemKeysListResponse> retrieveProblemKeysListResponse = hpsmService.auth(user.getHpsmUser().getHpsmUserName(),user.getHpsmUser().getHpsmPassword());
+            Map<String, RetrieveNEW9330035ProblemKeysListResponse> retrieveProblemKeysListResponse = hpsmService.auth(user.getHpsmUser().getHpsmUserName(),user.getHpsmUser().getHpsmPassword());
 
             user.getHpsmUser().setAuthenticated(true);
             modelMap.put("AUTHENTICATED", "AUTHENTICATED");
@@ -415,7 +423,6 @@ public class ConfigurationController {
 
         return new ResponseEntity<String>(responseJson.toString(), responseHeaders, HttpStatus.OK);
     }
-
 
 
     @RequestMapping(value = "/authenticatejira1", method = RequestMethod.POST, produces = {"application/json"})
@@ -459,17 +466,21 @@ public class ConfigurationController {
 
     @RequestMapping(value = "/addBusinessMappings1", method = RequestMethod.GET, produces = {"application/json"})
     public String addBusinessMappings1(@ModelAttribute(value = "userObj") User user, Model model) {
-        /*JSONObject responseJson = new JSONObject();
+        */
+/*JSONObject responseJson = new JSONObject();
         HttpHeaders responseHeaders = new HttpHeaders();
         responseHeaders.add("Content-Type", "application/json; charset=utf-8");
-        initiateJob();*/
+        initiateJob();*//*
+
 
         List<com.hpsmjira.model.Project> selectedProjects = userService.getSelectedProjects();
 
 
 
         if(user.getSelectedProjectToRemove() == null) {
-            /* TO add */
+            */
+/* TO add *//*
+
             com.hpsmjira.model.Project project = new com.hpsmjira.model.Project();
             project.setProjectId(user.getBusinessServiceMapping().getSelectedJIRAProjectId());
             project.setProjectName(user.getBusinessServiceMapping().getSelectedHPSMProjectName() + " [" + user.getBusinessServiceMapping().getSelectedJIRAProjectId() + "]");
@@ -552,7 +563,9 @@ public class ConfigurationController {
 
         try {
             hpsmService.authenticate(hpsmForm.getHpsmUserName(), hpsmForm.getHpsmPassword());
-            /*RetrieveProblemKeysListResponse retrieveProblemKeysListResponse = */hpsmService.retrieveProblemKeysList(hpsmService.getProblemManagement());
+            */
+/*RetrieveProblemKeysListResponse retrieveProblemKeysListResponse = *//*
+hpsmService.retrieveProblemKeysList(hpsmService.getProblemManagement());
 
             user.getHpsmUser().setAuthenticated(true);
 
@@ -754,7 +767,9 @@ public class ConfigurationController {
         model.addAttribute("userObj",new User());
 
         if(user.getSelectedProjectToRemove() == null) {
-            /* TO add */
+            */
+/* TO add *//*
+
             com.hpsmjira.model.Project project = new com.hpsmjira.model.Project();
             project.setProjectId(user.getBusinessServiceMapping().getSelectedJIRAProjectId());
             project.setProjectName(user.getBusinessServiceMapping().getSelectedHPSMProjectName() + " [" + user.getBusinessServiceMapping().getSelectedJIRAProjectId() + "]");
@@ -785,6 +800,7 @@ public class ConfigurationController {
     private void setCommonModel(Model model) {
 
     }
+*/
 
 
 

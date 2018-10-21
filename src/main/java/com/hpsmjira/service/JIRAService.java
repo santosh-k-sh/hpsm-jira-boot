@@ -2,10 +2,7 @@ package com.hpsmjira.service;
 
 import com.atlassian.jira.rest.client.api.IssueRestClient;
 import com.atlassian.jira.rest.client.api.JiraRestClient;
-import com.atlassian.jira.rest.client.api.domain.Issue;
-import com.atlassian.jira.rest.client.api.domain.IssueType;
-import com.atlassian.jira.rest.client.api.domain.Project;
-import com.atlassian.jira.rest.client.api.domain.SearchResult;
+import com.atlassian.jira.rest.client.api.domain.*;
 import com.atlassian.jira.rest.client.api.domain.input.FieldInput;
 import com.atlassian.jira.rest.client.api.domain.input.IssueInput;
 import com.atlassian.jira.rest.client.api.domain.input.IssueInputBuilder;
@@ -34,6 +31,9 @@ public class JIRAService {
     @Autowired
     UserService userService;
 
+    @Autowired
+    HPSMService hpsmService;
+
     public JiraRestClient login(Jira jira) {
         this.jira = jira;
 
@@ -58,9 +58,11 @@ public class JIRAService {
         List<JIRAIssue> jiraIssues = new ArrayList<JIRAIssue>();
 
         if(restClient != null) {
+            System.out.println("Searching in JIRA for Problem No : " + problemNo);
             Promise<SearchResult> searchJqlPromise = restClient.getSearchClient().searchJql(searchJqlText.toString());
 
             if(searchJqlPromise != null && ((Collection) searchJqlPromise.claim().getIssues()).size()  > 0) {
+                System.out.println("Problem No : " + problemNo + " found in JIRA");
                 for (Issue resultIssue : searchJqlPromise.claim().getIssues()) {
                     JIRAIssue jiraIssue2 = new JIRAIssue();
                     jiraIssue2.setIssueKey(resultIssue.getKey());
@@ -68,14 +70,28 @@ public class JIRAService {
                     jiraIssue2.setSummary(resultIssue.getSummary());
                     jiraIssue2.setIssueStatus(resultIssue.getStatus().getName());
                     jiraIssue2.setCreatedDate(resultIssue.getCreationDate());
+
+                    if(resultIssue.getFixVersions() != null && resultIssue.getStatus().getId() == 10001L) {
+                        StringBuffer fixVersions = new StringBuffer();
+                        for(Version version : resultIssue.getFixVersions()) {
+                            fixVersions.append(version.getName());
+                        }
+                        jiraIssue2.setFixVersion(fixVersions.toString());
+                    }
+
                     jiraIssues.add(jiraIssue2);
                 }
+            } else {
+                System.out.println("============================================================================");
+                System.out.println("Problem No : " + problemNo + " NOT found in JIRA");
+                System.out.println("============================================================================");
             }
         }
         return jiraIssues;
     }
 
     public List<String> createJIRATicket() {
+        System.out.println("createJIRATicket start...");
         IssueRestClient issueClient = restClient.getIssueClient();
         IssueType problemIssueType = null;
         List<String> newlyCreatedJIRAIds = new ArrayList<String>();
@@ -106,22 +122,23 @@ public class JIRAService {
                     FieldInput fieldInput = new FieldInput("customfield_10106", hpsmProblem.getProblemNo());
 
 
+                    System.out.println("Trying to create JIRA against Problem - " + hpsmProblem.getProblemNo());
                     /*IssueInput newIssue = new IssueInputBuilder(hpsmProblemDetail.getKey(),
-                            problemIssueType.getId(), hpsmProblemDet.getProblemTitle())
-                            .setDescription(hpsmProblemDet.getProblemDescription())
-                            .setPriorityId(Long.valueOf(hpsmProblemDet.getProblemPriority()))
+                            problemIssueType.getId(), hpsmProblem.getProblemTitle())
+                            .setDescription(hpsmProblem.getProblemDescription())
+                            .setPriorityId(Long.valueOf(hpsmProblem.getProblemPriority()))
                             .setIssueType(problemIssueType)
                             //.setIssueTypeId(hpsmProblemDet.getProjectKey().equals("problem")? 10900L:1090L) // TODO: CR to be handled here
                             //.setReporterName("Rana Khurram Shahzad")
                             .setFieldInput(fieldInput)
 
-                            .build();*/
+                            .build();
 
                     System.out.println("...");
-                    String jiraID = "111";//issueClient.createIssue(newIssue).claim().getKey();
-                    System.out.println("JIRA created succefully." + jiraID);
+                    String jiraID = issueClient.createIssue(newIssue).claim().getKey();
+                    System.out.println("JIRA created succefully." + jiraID + " for problem " + hpsmProblem.getProblemNo());*/
 
-                    newlyCreatedJIRAIds.add(jiraID);
+                    newlyCreatedJIRAIds.add("");
                 }
             }
         }
