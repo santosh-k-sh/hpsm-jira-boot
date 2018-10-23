@@ -2,7 +2,9 @@ package com.hpsmjira.service;
 
 import com.hp.schemas.sm._7.*;
 import com.hp.schemas.sm._7.common.StringType;
+import com.hpsmjira.model.ClosableProblem;
 import com.hpsmjira.model.HPSMProblem;
+import com.hpsmjira.model.JIRAIssue;
 import com.hpsmjira.utility.HPSMUtility;
 import com.sun.org.apache.xpath.internal.operations.Bool;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -30,10 +32,11 @@ public class HPSMService {
     UserService userService;
 
     private Map<String, Boolean> problemServiceNameMap = new HashMap<String, Boolean>();
+    private List<ClosableProblem> closableProblems = new ArrayList<ClosableProblem>();
 
     private ProblemManagement_Service problemManagementService;
     private ProblemManagement problemManagement;
-    private String[] problemStatuses = {"Work In Progress", "Assign", "Categorize"};
+    private String[] problemStatuses = {"Work In Progress", "Assign", "Categorize", "Accepted", "Pending", "Pending User", "Pending Vendor", "Resolved"};
 
     public void authenticate(String userName, String password) throws Exception {
         problemManagementService = new ProblemManagement_Service();
@@ -53,6 +56,7 @@ public class HPSMService {
         if(hpsmURL != null && hpsmURL.length() > 0) {
             hpsmURL = hpsmURL+"/ProblemManagement?wsdl";
             URL url = new URL(hpsmURL);
+            //url = new URL("http://localhost:8084/ProblemManagement?wsdl");
             problemManagementService = new ProblemManagement_Service(url);
         } else {
             problemManagementService = new ProblemManagement_Service();
@@ -106,7 +110,7 @@ public class HPSMService {
                         alreadyExistsInJIRA = selectedProblem.get(problemNo);
                     }
 
-                    problemServiceNameMap.replace(problemNo, true);
+                    problemServiceNameMap.replace(problemNo, true); // changing value to TRUE, assuming that search in JIRA was made against this problem number
 
                     /*Checks if the HPSM Problem already exists in JIRA */
                     if(!alreadyExistsInJIRA && jiraService.searchJiraTicket(problemNo).size() == 0) {
@@ -128,31 +132,6 @@ public class HPSMService {
                 String hpsmServiceName = selectedProject.getProjectName().split(" ")[0];
 
                 for(String status : problemStatuses) {
-                    /*RetrieveProblemKeysListRequest retrieveProblemKeysListRequest = new RetrieveProblemKeysListRequest();
-                    ProblemModelType model = new ProblemModelType();
-                    ProblemKeysType key = new ProblemKeysType();
-
-                    model.setKeys(key);
-
-                    ProblemInstanceType instanceType = new ProblemInstanceType();
-                    //instanceType.setImpact(HPSMUtility.setImpactValue("4"));
-
-                    instanceType.setService(HPSMUtility.setServiceValue(hpsmServiceName));
-
-                    instanceType.setStatus(HPSMUtility.setStatusValue(status));
-                    model.setInstance(instanceType);
-
-                    retrieveProblemKeysListRequest.setModel(model);
-                    //retrieveProblemKeysListRequest.setCount(5L);
-
-                    System.out.println("Retrieving HPSM Service Name : " + hpsmServiceName + " for status : " + status);
-
-                    retrieveProblemKeysListResponseMap.put(selectedProject.getProjectId()+":"+hpsmServiceName, problemManagement.retrieveProblemKeysList(retrieveProblemKeysListRequest));
-
-                    System.out.println("ProblemKeysListResponse : " + retrieveProblemKeysListResponseMap.size() + " for status : " + status);*/
-
-
-                    // New Operation call
                     retrieveProblemKeysListResponseMap.put(selectedProject.getProjectId()+":"+hpsmServiceName,  getProblemIdResponse(hpsmServiceName, status, null));
 
                     if(retrieveProblemKeysListResponseMap.size() > 0) {
@@ -181,25 +160,6 @@ public class HPSMService {
         } else {
             /* Dummy call to validate hpsm credential, as that api does not provide auth service */
             retrieveProblemKeysListResponseMap.put("Vision.BorderControl:TVIS",  getProblemIdResponse("Vision.BorderControl", "Categorize", 1L));
-
-            /*RetrieveProblemKeysListRequest retrieveProblemKeysListRequest = new RetrieveProblemKeysListRequest();
-            ProblemModelType model = new ProblemModelType();
-            ProblemKeysType key = new ProblemKeysType();
-
-            model.setKeys(key);
-
-            ProblemInstanceType instanceType = new ProblemInstanceType();
-            //instanceType.setImpact(HPSMUtility.setImpactValue("4"));
-
-            instanceType.setService(HPSMUtility.setServiceValue("Vision.BorderControl"));
-            instanceType.setStatus(HPSMUtility.setStatusValue("Categorize"));
-            model.setInstance(instanceType);
-
-            retrieveProblemKeysListRequest.setModel(model);
-            retrieveProblemKeysListRequest.setCount(1L);
-
-            retrieveProblemKeysListResponseMap.put("Vision.BorderControl", problemManagement.retrieveProblemKeysList(retrieveProblemKeysListRequest));*/
-
         }
 
         System.out.println("retrieveProblemKeysListResponseMap : " + retrieveProblemKeysListResponseMap.size());
@@ -227,6 +187,44 @@ public class HPSMService {
         return retrieveNEW9330035ProblemKeysListResponse;
     }
 
+    public void closeProblem() {
+        if(closableProblems != null && closableProblems.size() > 0) {
+            System.out.println("closableProblems : "+closableProblems);
+
+            for(ClosableProblem closableProblem : closableProblems) {
+                System.out.println("Closing Problem No. "+closableProblem.getHpsmProblemId());
+
+                CloseNEW9330035ProblemRequest closeNEW9330035ProblemRequest = new CloseNEW9330035ProblemRequest();
+                NEW9330035ProblemModelType new9330035ProblemModelType = new NEW9330035ProblemModelType();
+
+                NEW9330035ProblemKeysType problemKeysType = new NEW9330035ProblemKeysType();
+                problemKeysType.setID(HPSMUtility.setProblemKeysTypeID(closableProblem.getHpsmProblemId()));
+                new9330035ProblemModelType.setKeys(problemKeysType);
+
+                NEW9330035ProblemInstanceType new9330035ProblemInstanceType = new NEW9330035ProblemInstanceType();
+                new9330035ProblemInstanceType.setSubCategory(HPSMUtility.setSubCategory(closableProblem.getSubCategory()));
+                new9330035ProblemInstanceType.setClosureCode(HPSMUtility.setClosureCode(closableProblem.getClosureCode()));
+
+                new9330035ProblemInstanceType.setAssignee(HPSMUtility.setAssignee(closableProblem.getAssignee()));
+                new9330035ProblemInstanceType.setAssignmentGroup(HPSMUtility.setAssignmentGroup(closableProblem.getAssigneeGroup()));
+
+                NEW9330035ProblemInstanceType.Solution solution = HPSMUtility.createSolution();
+                solution.setType(closableProblem.getSolution());
+                new9330035ProblemInstanceType.setSolution(solution);
+
+                new9330035ProblemModelType.setInstance(new9330035ProblemInstanceType);
+
+                closeNEW9330035ProblemRequest.setModel(new9330035ProblemModelType);
+
+                problemManagement.closeNEW9330035Problem(closeNEW9330035ProblemRequest);
+            }
+
+            System.out.println("Clearing closableProblems.");
+            closableProblems.clear();
+
+        }
+    }
+
     public ProblemManagement_Service getProblemManagementService() {
         return problemManagementService;
     }
@@ -241,5 +239,13 @@ public class HPSMService {
 
     public void setProblemManagement(ProblemManagement problemManagement) {
         this.problemManagement = problemManagement;
+    }
+
+    public List<ClosableProblem> getClosableProblems() {
+        return closableProblems;
+    }
+
+    public void setClosableProblems(List<ClosableProblem> closableProblems) {
+        this.closableProblems = closableProblems;
     }
 }

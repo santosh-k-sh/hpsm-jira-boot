@@ -253,6 +253,11 @@ public class ConfigurationController {
         return selectedProjects;
     }
 
+    @RequestMapping(value = "/getSelectedProjectMappings")
+    public List<Project> getSelectedProjectMappings() {
+        return userService.getSelectedProjects();
+    }
+
 
     @RequestMapping(value = "/loadHPSMProblems")
     public List<HPSMProblem> loadHPSMProblems(@RequestParam String selectedJobHour) {
@@ -272,10 +277,9 @@ public class ConfigurationController {
             jiraService.createJIRATicket();
         }*/
 
-        initiateJob();
-
         if(selectedJobHour != null && selectedJobHour.length() > 0) {
-            changeDelay(Long.parseLong(selectedJobHour));
+            //changeDelay(Long.parseLong(selectedJobHour));
+            initiateJob(Long.parseLong(selectedJobHour));
         }
 
         if(userService.getProblemToMigrate() != null && userService.getProblemToMigrate().entrySet().size() > 0) {
@@ -316,18 +320,18 @@ public class ConfigurationController {
 
             if(userService.getProblemToMigrate() != null && userService.getProblemToMigrate().entrySet().size() > 0) {
                 userService.getProblemToMigrate().putAll(hpsmProblemMap);
-            } else {
+            } else if (hpsmProblemMap.size() > 0){
                 userService.setProblemToMigrate(hpsmProblemMap);
             }
         }
     }
 
-    public void initiateJob() {
+    public void initiateJob(long scheduleHourlyDelay) {
         executor = Executors.newScheduledThreadPool(1);
         runnable = new Runnable() {
             @Override
             public void run() {
-                System.out.println("Job initiated...");
+                System.out.println("Job initiated at..."+ new Date());
                 if(userService.getUser().isUserAuthenticated()) {
                     loadHPSMProblemToProcess();
                 }
@@ -337,9 +341,14 @@ public class ConfigurationController {
                     System.out.println("Problems to migrate : " + userService.getProblemToMigrate().entrySet().size());
                     jiraService.createJIRATicket();
                 }
+
+                // Close Problems
+                if(hpsmService.getClosableProblems() != null && hpsmService.getClosableProblems().size() > 0) {
+                    hpsmService.closeProblem();
+                }
             }
         };
-        future = executor.scheduleWithFixedDelay(runnable, 0, 10, TimeUnit.MINUTES);
+        future = executor.scheduleWithFixedDelay(runnable, 0, scheduleHourlyDelay, TimeUnit.MINUTES);
 
         try {
             Thread.sleep(20000l);
@@ -350,460 +359,10 @@ public class ConfigurationController {
 
     public static void changeDelay(long scheduleHourlyDelay) {
         boolean res = future.cancel(false);
-
         System.out.println("Previous task canceled: " + res);
 
-        future = executor.scheduleWithFixedDelay(runnable, 0, scheduleHourlyDelay, TimeUnit.MINUTES);
+        future = executor.scheduleWithFixedDelay(runnable, 0, scheduleHourlyDelay, TimeUnit.HOURS);
     }
-
-    /*
-    * REACT JS Changes ends
-    *
-    * */
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-/*
-
-    @RequestMapping(value = "/authenticatehpsm", method = RequestMethod.POST, produces = {"application/json"})
-    public ResponseEntity<String> authenticateHPSMUser(@ModelAttribute(value = "loginFormData") User user, ModelMap modelMap) throws JSONException {
-
-        JSONObject responseJson = new JSONObject();
-        HttpHeaders responseHeaders = new HttpHeaders();
-        responseHeaders.add("Content-Type", "application/json; charset=utf-8");
-
-        try {
-            System.out.println("calling hpsm..");
-
-            Map<String, RetrieveNEW9330035ProblemKeysListResponse> retrieveProblemKeysListResponse = hpsmService.auth(user.getHpsmUser().getHpsmUserName(),user.getHpsmUser().getHpsmPassword());
-
-            user.getHpsmUser().setAuthenticated(true);
-            modelMap.put("AUTHENTICATED", "AUTHENTICATED");
-            responseJson.put("AUTHENTICATED", true);
-
-            AuthCacheValue.setAuthCache(new AuthCacheImpl());
-
-            userService.setUser(user);
-
-            if(userService.getUser().getHpsmUser() != null && userService.getUser().getHpsmUser().isAuthenticated() &&
-                    userService.getUser().getJiraUser() != null && userService.getUser().getJiraUser().isAuthenticated()) {
-                user.setUserAuthenticated(true);
-                userService.getUser().setUserAuthenticated(true);
-            }
-
-        } catch (Exception e) {
-            if(user.getHpsmUser() !=null) {
-                user.getHpsmUser().setAuthenticated(false);
-            }
-            if(userService.getUser() != null) {
-                userService.getUser().setUserAuthenticated(false);
-            }
-
-            responseJson.put("AUTHENTICATED", false);
-        }
-
-        if(userService.getUser() == null) {
-            userService.setUser(user);
-        } else {
-            userService.getUser().setHpsmUser(user.getHpsmUser());
-        }
-
-        return new ResponseEntity<String>(responseJson.toString(), responseHeaders, HttpStatus.OK);
-    }
-
-
-    @RequestMapping(value = "/authenticatejira1", method = RequestMethod.POST, produces = {"application/json"})
-    public ResponseEntity<String> authenticateJIRAUser(@ModelAttribute(value = "loginFormData") User user, ModelMap modelMap) throws JSONException {
-
-        JSONObject responseJson = new JSONObject();
-        HttpHeaders responseHeaders = new HttpHeaders();
-        responseHeaders.add("Content-Type", "application/json; charset=utf-8");
-
-        try {
-            jiraService.login(user.getJiraUser());
-            user.getJiraUser().setAuthenticated(true);
-            responseJson.put("AUTHENTICATED", true);
-        } catch (Exception e) {
-            responseJson.put("AUTHENTICATED", false);
-            if(user.getJiraUser() != null) {
-                user.getJiraUser().setAuthenticated(false);
-            }
-
-            if(userService.getUser() != null) {
-                userService.getUser().setUserAuthenticated(false);
-            }
-
-        }
-
-        if(userService.getUser() == null) {
-            userService.setUser(user);
-        } else {
-            userService.getUser().setJiraUser(user.getJiraUser());
-        }
-
-        if(userService.getUser().getHpsmUser() != null && userService.getUser().getHpsmUser().isAuthenticated() &&
-                userService.getUser().getJiraUser() != null && userService.getUser().getJiraUser().isAuthenticated()) {
-            user.setUserAuthenticated(true);
-            userService.getUser().setUserAuthenticated(true);
-        }
-
-        return new ResponseEntity<String>(responseJson.toString(), responseHeaders, HttpStatus.OK);
-    }
-
-
-    @RequestMapping(value = "/addBusinessMappings1", method = RequestMethod.GET, produces = {"application/json"})
-    public String addBusinessMappings1(@ModelAttribute(value = "userObj") User user, Model model) {
-        */
-/*JSONObject responseJson = new JSONObject();
-        HttpHeaders responseHeaders = new HttpHeaders();
-        responseHeaders.add("Content-Type", "application/json; charset=utf-8");
-        initiateJob();*//*
-
-
-        List<com.hpsmjira.model.Project> selectedProjects = userService.getSelectedProjects();
-
-
-
-        if(user.getSelectedProjectToRemove() == null) {
-            */
-/* TO add *//*
-
-            com.hpsmjira.model.Project project = new com.hpsmjira.model.Project();
-            project.setProjectId(user.getBusinessServiceMapping().getSelectedJIRAProjectId());
-            project.setProjectName(user.getBusinessServiceMapping().getSelectedHPSMProjectName() + " [" + user.getBusinessServiceMapping().getSelectedJIRAProjectId() + "]");
-
-            if (selectedProjects == null) {
-                selectedProjects = new ArrayList<com.hpsmjira.model.Project>();
-            }
-
-            selectedProjects.add(project);
-            userService.setSelectedProjects(selectedProjects);
-        } else if(user.getSelectedProjectToRemove() != null) {
-            for(com.hpsmjira.model.Project projectToRemove : selectedProjects) {
-                System.out.println(projectToRemove);
-                if(projectToRemove.getProjectName().equals(user.getSelectedProjectToRemove())) {
-                    selectedProjects.remove(projectToRemove);
-                    break;
-                }
-            }
-        }
-
-        user.setSelectedProjectToRemove(null);
-        List<com.hpsmjira.model.Project> projectList = new ArrayList<>();
-        model.addAttribute("projectMap", projectList);
-        model.addAttribute("projectMap", projectList);
-
-        model.addAttribute("testMsg", "hello");
-
-        return "configure";
-    }
-
-
-    @RequestMapping(value = "/guests", method = RequestMethod.GET)
-    public String showGuestList(Model model) {
-
-        List<com.hpsmjira.model.Project> projectList = new ArrayList<>();
-        com.hpsmjira.model.Project project = new com.hpsmjira.model.Project();
-        project.setProjectId("T1");
-        project.setProjectName("Time Project");
-        projectList.add(project);
-
-        model.addAttribute("guests", projectList);
-
-        return "resultsList :: resultsList";
-    }
-
-    @RequestMapping(value = "/getBlacklistDetails")
-    public String getBlacklistDetails(HttpServletRequest request, ModelMap modelMap) {
-
-        List<com.hpsmjira.model.Project> projectList = new ArrayList<>();
-        com.hpsmjira.model.Project project = new com.hpsmjira.model.Project();
-        project.setProjectId("T1");
-        project.setProjectName("Time Project");
-        projectList.add(project);
-
-        modelMap.addAttribute("project", project);
-
-        return "templates/fragments/blacklist :: blacklist";
-    }
-
-
-
-
-
-
-
-
-
-
-    @PostMapping(value = "configureHPSM")
-    public String configureHPSM(@ModelAttribute("hpsmCredential") Hpsm hpsmForm, HttpSession session, Model model) {
-        User user = new User();
-
-        session.setAttribute("hpsmCredentials", hpsmForm);
-
-        if(session.getAttribute("USER") != null) {
-            user = (User) session.getAttribute("USER");
-        }
-        user.setHpsmUser(hpsmForm);
-        user.getHpsmUser().setAuthenticated(false);
-
-        try {
-            hpsmService.authenticate(hpsmForm.getHpsmUserName(), hpsmForm.getHpsmPassword());
-            */
-/*RetrieveProblemKeysListResponse retrieveProblemKeysListResponse = *//*
-hpsmService.retrieveProblemKeysList(hpsmService.getProblemManagement());
-
-            user.getHpsmUser().setAuthenticated(true);
-
-            model.addAttribute("hpsmAuthenticated", "TRUE");
-        } catch (Exception e) {
-            model.addAttribute("hpsmException", "HPSM Authentication Failed !!");
-            model.addAttribute("hpsmAuthenticated", null);
-            session.setAttribute("hpsmProblems", null);
-        }
-
-        if(user.getHpsmUser() != null && user.getHpsmUser().isAuthenticated() &&
-                user.getJiraUser() != null && user.getJiraUser().isAuthenticated()) {
-            user.setUserAuthenticated(true);
-        }
-        session.setAttribute("USER", user);
-        userService.setUser(user);
-
-        if(session.getAttribute("jiraCredentials") != null) {
-            Jira jiraFormFromSession = (Jira) session.getAttribute("jiraCredentials");
-            model.addAttribute("jiraCredential", jiraFormFromSession);
-        } else {
-            model.addAttribute("jiraCredential", new Jira());
-        }
-
-        if(session.getAttribute("hpsmCredential") != null) {
-            Hpsm hpsmFormFromSession = (Hpsm) session.getAttribute("hpsmCredential");
-            model.addAttribute("hpsmCredential", hpsmFormFromSession);
-        } else {
-            model.addAttribute("hpsmCredential", new Hpsm());
-        }
-
-        // JIRA Project setup
-        model.addAttribute("jiraProjects", lookupProvider.getJiraProjects());
-
-        // HPSM Project setup
-        model.addAttribute("hpsmProjects", lookupProvider.getHpsmProjects());
-
-        model.addAttribute("user", user);
-
-        return "configure";
-    }
-
-
-
-
-    @PostMapping(value = "configureJIRA")
-    public String configureJIRA(@ModelAttribute("jiraCredential") Jira jiraForm, HttpSession session, Model model) {
-        User user = new User();
-
-        List<HPSMProject> hpsmProjects1 = lookupProvider.loadHPSMProjects();
-
-        session.setAttribute("jiraCredentials", jiraForm);
-
-        if(session.getAttribute("USER") != null) {
-            user = (User) session.getAttribute("USER");
-        }
-        user.setJiraUser(jiraForm);
-        user.getJiraUser().setAuthenticated(false);
-
-        JiraRestClient jiraRestClient = null;
-
-        try {
-            jiraRestClient = jiraService.login(jiraForm);
-            model.addAttribute("jiraException", null);
-            model.addAttribute("jiraAuthenticated", "TRUE");
-
-            user.getJiraUser().setAuthenticated(true);
-
-        } catch (Exception e) {
-            model.addAttribute("jiraException", "JIRA Authentication Failed !!");
-            model.addAttribute("jiraAuthenticated", null);
-        }
-
-        if(user.getHpsmUser() != null && user.getHpsmUser().isAuthenticated() &&
-                user.getJiraUser() != null && user.getJiraUser().isAuthenticated()) {
-            user.setUserAuthenticated(true);
-        }
-
-        session.setAttribute("USER", user);
-        userService.setUser(user);
-
-        model.addAttribute("jiraRestClient", jiraRestClient);
-
-        if(session.getAttribute("jiraCredentials") != null) {
-            Jira jiraFormFromSession = (Jira) session.getAttribute("jiraCredentials");
-            model.addAttribute("jiraCredential", jiraFormFromSession);
-        } else {
-            model.addAttribute("jiraCredential", new Jira());
-        }
-
-        if(session.getAttribute("hpsmCredential") != null) {
-            Hpsm hpsmFormFromSession = (Hpsm) session.getAttribute("hpsmCredential");
-            model.addAttribute("hpsmCredential", hpsmFormFromSession);
-        } else {
-            model.addAttribute("hpsmCredential", new Hpsm());
-        }
-
-        // JIRA Project setup
-        model.addAttribute("jiraProjects", lookupProvider.loadJIRAProjects());
-
-        // HPSM Project setup
-        model.addAttribute("hpsmProjects", lookupProvider.loadHPSMProjects());
-
-        model.addAttribute("user", user);
-
-        return "configure";
-    }
-
-
-    @RequestMapping(value = "configureHPSMJIRA")
-    public String configure(@ModelAttribute("user") User user, HttpSession session, Model model) {
-        User tmpUser = user;
-
-        if(session.getAttribute("jiraCredentials") != null) {
-            Jira jiraFormFromSession = (Jira) session.getAttribute("jiraCredentials");
-            model.addAttribute("jiraCredential", jiraFormFromSession);
-        } else {
-            model.addAttribute("jiraCredential", new Jira());
-        }
-
-        if(session.getAttribute("hpsmCredential") != null) {
-            Hpsm hpsmFormFromSession = (Hpsm) session.getAttribute("hpsmCredential");
-            model.addAttribute("hpsmCredential", hpsmFormFromSession);
-        } else {
-            model.addAttribute("hpsmCredential", new Hpsm());
-        }
-
-        if(session.getAttribute("USER") != null) {
-            User userTmp = (User) session.getAttribute("USER");
-            userTmp.setBusinessServiceMapping(tmpUser.getBusinessServiceMapping());
-
-            tmpUser = userTmp;
-            session.setAttribute("USER", tmpUser);
-            //userService.setUser(user);
-        }
-
-        model.addAttribute("user", tmpUser);
-
-
-        // JIRA Project setup
-        model.addAttribute("jiraProjects", lookupProvider.loadJIRAProjects());
-
-        // HPSM Project setup
-        List<HPSMProject> hpsmProjects = lookupProvider.loadHPSMProjects();
-        model.addAttribute("hpsmProjects", hpsmProjects);
-
-        List<JIRAProject> jiraProjects = new ArrayList<JIRAProject>();
-
-        if(userService != null && userService.getUser() != null && userService.getUser().isUserAuthenticated()) {
-            for(HPSMProject project:hpsmProjects) {
-                if(project.getProjectName().equals(user.getBusinessServiceMapping().getHpsmProject().getProjectName())) {
-                    user.getBusinessServiceMapping().getHpsmProject().setProjectId(project.getProjectId());
-                    break;
-                }
-            }
-
-            for (JIRAProject jiraProject : lookupProvider.loadJIRAProjects()) {
-                if (jiraProject.getProjectId().equals(user.getBusinessServiceMapping().getHpsmProject().getProjectId())) {
-                    // HPSM -> JIRA
-                    //user.getBusinessServiceMapping().getJiraProject().setProjectId(user.getBusinessServiceMapping().getHpsmProject().getProjectId());
-                    userService.getUser().getBusinessServiceMapping().getJiraProject().setProjectId(user.getBusinessServiceMapping().getHpsmProject().getProjectId());
-                    break;
-                }
-            }
-        }
-
-        return "configure";
-    }
-
-    @PostMapping(value = "saveConfig")
-    public String saveConfiguration(@ModelAttribute("util") User user, HttpSession session, Model model) {
-
-        if(userService.getUser() != null && userService.getUser().isUserAuthenticated()) {
-
-        }
-
-        // JIRA Project setup
-        model.addAttribute("jiraProjects", lookupProvider.loadJIRAProjects());
-
-        // HPSM Project setup
-        List<HPSMProject> hpsmProjects = lookupProvider.loadHPSMProjects();
-        model.addAttribute("hpsmProjects", hpsmProjects);
-
-        model.addAttribute("util", userService.getUser());
-        model.addAttribute("userObj", userService.getUser() != null? userService.getUser():new User());
-
-        return "configure";
-    }
-
-    @PostMapping(value = "addBusinessMapping")
-    public String addBusinessMapping(@ModelAttribute("util") User user, HttpSession session, Model model) {
-        List<com.hpsmjira.model.Project> selectedProjects = userService.getSelectedProjects(); //user.getSelectedProjects();
-
-        // JIRA Project setup
-        model.addAttribute("jiraProjects", lookupProvider.getJiraProjects());
-
-        // HPSM Project setup
-        model.addAttribute("hpsmProjects", lookupProvider.getHpsmProjects());
-        model.addAttribute("userObj",new User());
-
-        if(user.getSelectedProjectToRemove() == null) {
-            */
-/* TO add *//*
-
-            com.hpsmjira.model.Project project = new com.hpsmjira.model.Project();
-            project.setProjectId(user.getBusinessServiceMapping().getSelectedJIRAProjectId());
-            project.setProjectName(user.getBusinessServiceMapping().getSelectedHPSMProjectName() + " [" + user.getBusinessServiceMapping().getSelectedJIRAProjectId() + "]");
-
-            if (selectedProjects == null) {
-                selectedProjects = new ArrayList<com.hpsmjira.model.Project>();
-            }
-
-            selectedProjects.add(project);
-            userService.setSelectedProjects(selectedProjects);
-        } else if(user.getSelectedProjectToRemove() != null) {
-            for(Project projectToRemove : selectedProjects) {
-                System.out.println(projectToRemove);
-                if(projectToRemove.getProjectName().equals(user.getSelectedProjectToRemove())) {
-                    selectedProjects.remove(projectToRemove);
-                    break;
-                }
-            }
-        }
-
-        user.setSelectedProjectToRemove(null);
-
-        model.addAttribute("projectMap", selectedProjects);
-
-        return "configure";
-    }
-
-    private void setCommonModel(Model model) {
-
-    }
-*/
-
-
-
 
 }
 

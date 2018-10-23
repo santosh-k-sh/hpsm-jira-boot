@@ -152,4 +152,48 @@ public class HPSMUtility {
         return dateTimeTypeJAXBElement;
     }
 
+    public static JAXBElement<StringType> setClosureCode(String value) {
+        ObjectFactory factory = new ObjectFactory();
+        StringType stringType = new StringType();
+        stringType.setValue(value);
+        JAXBElement<StringType> status = factory.createProblemInstanceTypeClosureCode(stringType);
+
+        return status;
+    }
+
+    public static JAXBElement<StringType> setSubCategory(String value) {
+        ObjectFactory factory = new ObjectFactory();
+        StringType stringType = new StringType();
+        stringType.setValue(value);
+        JAXBElement<StringType> status = factory.createProblemInstanceTypeSubCategory(stringType);
+
+        return status;
+    }
+
+    public static NEW9330035ProblemInstanceType.Solution createSolution() {
+        ObjectFactory factory = new ObjectFactory();
+        StringType stringType = new StringType();
+        return factory.createNEW9330035ProblemInstanceTypeSolution();
+    }
+
+    public static JAXBElement<StringType> setAssignee(String value) {
+        ObjectFactory factory = new ObjectFactory();
+        StringType stringType = new StringType();
+        stringType.setValue(value);
+        JAXBElement<StringType> status = factory.createNEW9330035ProblemInstanceTypeAssignee(stringType);
+
+        return status;
+    }
+
+    public static JAXBElement<StringType> setAssignmentGroup(String value) {
+        ObjectFactory factory = new ObjectFactory();
+        StringType stringType = new StringType();
+        stringType.setValue(value);
+        JAXBElement<StringType> status = factory.createNEW9330035ProblemInstanceTypeAssignmentGroup(stringType);
+
+        return status;
+    }
+
+
+
 }
